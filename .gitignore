@@ -1,0 +1,10 @@
+.env
+.cursor
+.cursorignore
+
+#Environment
+setscout-env/
+
+#Cache
+*__pycache__/
+*.ruff_cache/

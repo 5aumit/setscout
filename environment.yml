@@ -1,0 +1,33 @@
+name: setscout
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - numpy
+  - pandas
+  - pydantic
+  - python-dotenv
+  - requests
+  - beautifulsoup4
+  - lxml
+  - tqdm
+  - pytest
+  - pytest-asyncio
+  - ruff
+  - jupyter
+  - ipywidgets
+  - pip:
+      - aiohttp
+      - chromadb
+      - gradio
+      - huggingface-hub
+      - kaggle
+      - langchain
+      - langchain-chroma
+      - langchain-community
+      - langchain-google-genai
+      - langgraph
+      - semanticscholar
+      - sentence-transformers
+      - tenacity

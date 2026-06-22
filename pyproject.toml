@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "setscout"
+version = "0.1.0"
+description = "Agentic dataset discovery and evaluation for ML researchers"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "aiohttp",
+    "chromadb",
+    "gradio",
+    "huggingface-hub",
+    "kaggle",
+    "langchain",
+    "langchain-chroma",
+    "langchain-community",
+    "langchain-google-genai",
+    "langgraph",
+    "pydantic",
+    "python-dotenv",
+    "semanticscholar",
+    "sentence-transformers",
+    "tenacity",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ipywidgets",
+    "jupyter",
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["setscout"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
