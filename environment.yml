@@ -23,6 +23,7 @@ dependencies:
       - kaggle
       - langchain
       - langchain-community
+      - langfuse
       - langchain-google-genai
       - langgraph
       - tenacity

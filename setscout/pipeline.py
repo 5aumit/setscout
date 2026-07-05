@@ -6,6 +6,7 @@ from typing import Any
 from setscout.graph import build_setscout_graph
 from setscout.graph.state import SetScoutState
 from setscout.models import UserQuery
+from setscout.tracing import flush_traces, invoke_config
 
 
 def user_query_from_dict(d: dict[str, Any]) -> UserQuery:
@@ -39,4 +40,6 @@ def run_pipeline(
 
     app = build_setscout_graph(key)
     initial: SetScoutState = {"query": q, "logs": []}
-    return app.invoke(initial)
+    result = app.invoke(initial, config=invoke_config())
+    flush_traces()
+    return result

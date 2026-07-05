@@ -13,6 +13,7 @@ dependencies = [
     "huggingface-hub",
     "kaggle",
     "langchain",
+    "langfuse",
     "langchain-community",
     "langchain-google-genai",
     "langgraph",

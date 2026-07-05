@@ -14,6 +14,7 @@ Create a repo-root `.env` with:
 
 - `GEMINI_API_KEY`
 - `KAGGLE_USERNAME` / `KAGGLE_KEY` (optional, for Kaggle search)
+- `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL=https://us.cloud.langfuse.com` (optional, enables tracing)
 
 ## Run
 
