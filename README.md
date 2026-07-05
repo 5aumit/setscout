@@ -35,3 +35,9 @@ result = run_pipeline({
 })
 print(result["report"])
 ```
+
+End-to-end smoke run with timestamped logs:
+
+```bash
+python -m scripts.run_pipeline_once
+```

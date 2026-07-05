@@ -34,6 +34,9 @@ def run_pipeline(
         raise ValueError("purpose, domain, and data_type are required")
 
     key = api_key if api_key is not None else os.environ.get("GEMINI_API_KEY") or None
+    if not key:
+        raise ValueError("GEMINI_API_KEY is required")
+
     app = build_setscout_graph(key)
     initial: SetScoutState = {"query": q, "logs": []}
     return app.invoke(initial)

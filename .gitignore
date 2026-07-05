@@ -8,3 +8,11 @@ setscout-env/
 #Cache
 *__pycache__/
 *.ruff_cache/
+*.pytest_cache/
+
+# Logs
+logs/*
+!logs/.gitignore
+
+#Tests
+tests/

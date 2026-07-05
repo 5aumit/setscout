@@ -2,14 +2,35 @@ from __future__ import annotations
 
 import asyncio
 
+from huggingface_hub import list_datasets
+
 from setscout.models import DatasetCandidate, SearchSpec, normalize_prioritized_sources
 
 SEARCH_LIMIT_PER_SOURCE = 10
 
 
-def _search_query(spec: SearchSpec) -> str:
-    parts = list(spec.expanded_keywords) + list(spec.mesh_terms)
-    return " ".join(p.strip() for p in parts if p.strip())[:200] or "dataset"
+def _first_attr(obj, *names, default=None):
+    """Return the first non-None attribute from obj, trying names in order."""
+    for name in names:
+        val = getattr(obj, name, None)
+        if val is not None:
+            return val
+    return default
+
+
+def _search_query_candidates(spec: SearchSpec) -> list[str]:
+    """Short queries work best; try expanded terms in order until one hits."""
+    parts = [p.strip() for p in list(spec.expanded_keywords) + list(spec.mesh_terms) if p.strip()]
+    if not parts:
+        return ["dataset"]
+    seen: set[str] = set()
+    candidates: list[str] = []
+    for part in parts[:5]:
+        key = part.lower()
+        if key not in seen:
+            candidates.append(part)
+            seen.add(key)
+    return candidates
 
 
 def _hf_to_candidate(info) -> DatasetCandidate:
@@ -40,30 +61,48 @@ def _kaggle_to_candidate(ds) -> DatasetCandidate:
             "ref": ref,
             "title": getattr(ds, "title", None),
             "subtitle": getattr(ds, "subtitle", None),
-            "creator": getattr(ds, "creatorName", None),
-            "total_votes": getattr(ds, "totalVotes", None),
-            "total_downloads": getattr(ds, "totalDownloads", None),
-            "last_updated": str(getattr(ds, "lastUpdated", "")),
+            "creator": _first_attr(ds, "creator_name", "creatorName"),
+            "total_votes": _first_attr(ds, "vote_count", "totalVotes"),
+            "total_downloads": _first_attr(ds, "download_count", "totalDownloads"),
+            "last_updated": str(_first_attr(ds, "last_updated", "lastUpdated", default="")),
         },
     )
 
 
 def _search_huggingface_sync(spec: SearchSpec, limit: int) -> list[DatasetCandidate]:
-    from huggingface_hub import list_datasets
-
-    query = _search_query(spec)
-    infos = list(list_datasets(search=query, sort="downloads", direction=-1, limit=limit))
-    return [_hf_to_candidate(i) for i in infos]
+    for query in _search_query_candidates(spec):
+        infos = list(list_datasets(search=query, sort="downloads", limit=limit))
+        if infos:
+            return [_hf_to_candidate(i) for i in infos]
+    return []
 
 
 def _search_kaggle_sync(spec: SearchSpec, limit: int) -> list[DatasetCandidate]:
+    # The Kaggle package can require credentials at import time; keep that dependency
+    # behind the Kaggle path so HuggingFace-only searches still import cleanly.
     from kaggle.api.kaggle_api_extended import KaggleApi
 
     api = KaggleApi()
     api.authenticate()
-    query = _search_query(spec)
-    datasets = api.dataset_list(search=query, sort_by="votes", page_size=limit)
-    return [_kaggle_to_candidate(d) for d in datasets]
+    for query in _search_query_candidates(spec):
+        datasets = api.dataset_list(search=query, sort_by="votes", page=1) or []
+        if datasets:
+            return [_kaggle_to_candidate(d) for d in datasets[:limit]]
+    return []
+
+
+def _interleave_by_source(
+    ordered_results: dict[str, list[DatasetCandidate]],
+    ordered_sources: list[str],
+) -> list[DatasetCandidate]:
+    interleaved: list[DatasetCandidate] = []
+    max_len = max((len(ordered_results[source]) for source in ordered_sources), default=0)
+    for index in range(max_len):
+        for source in ordered_sources:
+            candidates = ordered_results[source]
+            if index < len(candidates):
+                interleaved.append(candidates[index])
+    return interleaved
 
 
 async def search_huggingface(
@@ -79,20 +118,21 @@ async def search_kaggle(
 
 
 async def search_all_sources(spec: SearchSpec) -> tuple[list[DatasetCandidate], list[str]]:
-    sources = set(normalize_prioritized_sources(spec.prioritized_sources))
+    sources = normalize_prioritized_sources(spec.prioritized_sources)
     tasks: dict[str, asyncio.Task] = {}
     if "huggingface" in sources:
         tasks["huggingface"] = asyncio.create_task(search_huggingface(spec))
     if "kaggle" in sources:
         tasks["kaggle"] = asyncio.create_task(search_kaggle(spec))
 
-    candidates: list[DatasetCandidate] = []
+    results_by_source: dict[str, list[DatasetCandidate]] = {source: [] for source in sources}
     search_logs: list[str] = []
     for source, task in tasks.items():
         try:
             found = await task
-            candidates.extend(found)
+            results_by_source[source] = found
             search_logs.append(f"searcher: {source} returned {len(found)} hits")
         except Exception as exc:
-            search_logs.append(f"searcher: {source} failed — {type(exc).__name__}: {exc}")
+            search_logs.append(f"searcher: {source} failed - {type(exc).__name__}: {exc}")
+    candidates = _interleave_by_source(results_by_source, sources)
     return candidates, search_logs

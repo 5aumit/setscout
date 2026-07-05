@@ -9,20 +9,15 @@ description = "Agentic dataset discovery and evaluation for ML researchers"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "aiohttp",
-    "chromadb",
     "gradio",
     "huggingface-hub",
     "kaggle",
     "langchain",
-    "langchain-chroma",
     "langchain-community",
     "langchain-google-genai",
     "langgraph",
     "pydantic",
     "python-dotenv",
-    "semanticscholar",
-    "sentence-transformers",
     "tenacity",
 ]
 
