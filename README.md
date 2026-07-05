@@ -1,6 +1,8 @@
 # SetScout
 
-Agentic dataset discovery and evaluation for ML researchers. Describe what you need in natural language; a LangGraph pipeline searches Hugging Face and Kaggle, scores candidates, and produces a structured report.
+Agentic dataset discovery and evaluation for ML researchers. Describe what you need in natural language; a LangGraph pipeline searches Hugging Face and Kaggle, gathers dataset-card evidence, scores candidates, and produces a structured report.
+
+For in-depth documentation, see [deepwiki.com/5aumit/setscout](https://deepwiki.com/5aumit/setscout).
 
 ## Setup
 
@@ -10,35 +12,41 @@ conda activate setscout
 pip install -e ".[dev]"
 ```
 
-Create a repo-root `.env` with:
+Create a repo-root `.env` with your `GEMINI_API_KEY`.
 
-- `GEMINI_API_KEY`
-- `KAGGLE_USERNAME` / `KAGGLE_KEY` (optional, for Kaggle search)
-- `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL=https://us.cloud.langfuse.com` (optional, enables tracing)
+## Request fields
+
+**Required:** `purpose`, `domain`, `data_type`
+
+**Optional:** `requirements` (free-text constraints), `additional_notes`, `exclude_datasets` (comma-separated names or list)
 
 ## Run
 
-Prototype notebook:
-
-```bash
-jupyter notebook notebooks/setscout_prototype.ipynb
-```
-
-Or from Python:
+**Python API:**
 
 ```python
 from setscout import run_pipeline
 
 result = run_pipeline({
-    "purpose": "...",
-    "domain": "...",
-    "data_type": "...",
+    "purpose": "benchmark sentiment classifiers",
+    "domain": "natural language processing",
+    "data_type": "text datasets",
+    "requirements": "English, labeled, at least 1000 examples",
+    "exclude_datasets": "IMDB",
 })
 print(result["report"])
 ```
 
-End-to-end smoke run with timestamped logs:
+Pass `api_key="..."` to override `GEMINI_API_KEY` from the environment (e.g. user-supplied key at runtime).
+
+**Smoke run** (timestamped logs under `logs/`):
 
 ```bash
 python -m scripts.run_pipeline_once
 ```
+
+`app.py` is the Hugging Face Spaces entry point; it re-exports `run_pipeline` for deployment.
+
+## Architecture
+
+See [setscout/README.md](setscout/README.md) for pipeline design, configuration, and project layout.
