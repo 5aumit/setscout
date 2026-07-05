@@ -9,7 +9,7 @@ from setscout.tools.documents import fetch_dataset_card
 from setscout.tools.enrichment import gather_outcomes
 from setscout.tools.prompt_context import format_batch_excerpt
 
-DEFAULT_BATCH_EXCERPT_CHARS = 2000
+DEFAULT_BATCH_EXCERPT_CHARS = 20000
 
 
 async def _fetch_one(candidate: DatasetCandidate) -> tuple[str, str | None]:
