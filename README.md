@@ -1,3 +1,9 @@
+---
+title: SetScout
+sdk: gradio
+app_file: app.py
+---
+
 # SetScout
 
 Agentic dataset discovery and evaluation for ML researchers. Describe what you need in natural language; a LangGraph pipeline searches Hugging Face and Kaggle, gathers dataset-card evidence, scores candidates, and produces a structured report.
@@ -45,7 +51,13 @@ Pass `api_key="..."` to override `GEMINI_API_KEY` from the environment (e.g. use
 python -m scripts.run_pipeline_once
 ```
 
-`app.py` is the Hugging Face Spaces entry point; it re-exports `run_pipeline` for deployment.
+**Gradio UI** (local or HF Spaces):
+
+```bash
+python app.py
+```
+
+The UI collects all fields above plus a Gemini API key (password field). For Kaggle results on Spaces, set `KAGGLE_USERNAME` and `KAGGLE_KEY` as Space secrets; Kaggle soft-fails without them.
 
 ## Architecture
 

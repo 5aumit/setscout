@@ -1,0 +1,11 @@
+gradio
+huggingface-hub
+kaggle
+langchain
+langchain-community
+langchain-google-genai
+langfuse
+langgraph
+pydantic
+python-dotenv
+tenacity
