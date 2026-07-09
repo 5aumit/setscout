@@ -1,5 +1,7 @@
 # SetScout
 
+> **WIP:** This project is still under active development. APIs, behavior, and docs may change.
+
 Agentic dataset discovery and evaluation for ML researchers. Describe what you need in natural language; a LangGraph pipeline searches Hugging Face and Kaggle, gathers dataset-card evidence, scores candidates, and produces a structured report.
 
 For in-depth documentation, see [deepwiki.com/5aumit/setscout](https://deepwiki.com/5aumit/setscout).
