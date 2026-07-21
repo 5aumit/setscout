@@ -1,6 +1,7 @@
 .env
 .cursor
 .cursorignore
+.codex/
 
 #Environment
 setscout-env/
@@ -13,6 +14,3 @@ setscout-env/
 # Logs
 logs/*
 !logs/.gitignore
-
-#Tests
-tests/

@@ -1,12 +1,38 @@
 from __future__ import annotations
 
 import asyncio
+import os
+from pathlib import Path
 
 from huggingface_hub import list_datasets
 
 from setscout.models import DatasetCandidate, SearchSpec, normalize_prioritized_sources
 
 SEARCH_LIMIT_PER_SOURCE = 10
+
+
+def _kaggle_config_dir() -> Path:
+    configured = os.environ.get("KAGGLE_CONFIG_DIR")
+    if configured:
+        return Path(configured).expanduser()
+
+    home_kaggle = Path.home() / ".kaggle"
+    if home_kaggle.exists() or not os.environ.get("XDG_CONFIG_HOME"):
+        return home_kaggle
+    return Path(os.environ["XDG_CONFIG_HOME"]).expanduser() / "kaggle"
+
+
+def _has_kaggle_credentials() -> bool:
+    if os.environ.get("KAGGLE_API_TOKEN"):
+        return True
+    if os.environ.get("KAGGLE_USERNAME") and os.environ.get("KAGGLE_KEY"):
+        return True
+
+    config_dir = _kaggle_config_dir()
+    return any(
+        (config_dir / filename).exists()
+        for filename in ("access_token", "credentials.json", "kaggle.json")
+    )
 
 
 def _first_attr(obj, *names, default=None):
@@ -80,6 +106,9 @@ def _search_huggingface_sync(spec: SearchSpec, limit: int) -> list[DatasetCandid
 def _search_kaggle_sync(spec: SearchSpec, limit: int) -> list[DatasetCandidate]:
     # The Kaggle package can require credentials at import time; keep that dependency
     # behind the Kaggle path so HuggingFace-only searches still import cleanly.
+    if not _has_kaggle_credentials():
+        return []
+
     from kaggle.api.kaggle_api_extended import KaggleApi
 
     api = KaggleApi()
@@ -117,22 +146,37 @@ async def search_kaggle(
     return await asyncio.to_thread(_search_kaggle_sync, spec, limit)
 
 
+async def _safe_source_search(
+    source: str,
+    search_task,
+) -> tuple[str, list[DatasetCandidate], str]:
+    try:
+        found = await search_task
+        return source, found, f"searcher: {source} returned {len(found)} hits"
+    except (Exception, SystemExit) as exc:
+        return source, [], f"searcher: {source} failed - {type(exc).__name__}: {exc}"
+
+
 async def search_all_sources(spec: SearchSpec) -> tuple[list[DatasetCandidate], list[str]]:
     sources = normalize_prioritized_sources(spec.prioritized_sources)
     tasks: dict[str, asyncio.Task] = {}
+    search_logs: list[str] = []
     if "huggingface" in sources:
-        tasks["huggingface"] = asyncio.create_task(search_huggingface(spec))
+        tasks["huggingface"] = asyncio.create_task(
+            _safe_source_search("huggingface", search_huggingface(spec))
+        )
     if "kaggle" in sources:
-        tasks["kaggle"] = asyncio.create_task(search_kaggle(spec))
+        if _has_kaggle_credentials():
+            tasks["kaggle"] = asyncio.create_task(
+                _safe_source_search("kaggle", search_kaggle(spec))
+            )
+        else:
+            search_logs.append("searcher: kaggle skipped - credentials not configured")
 
     results_by_source: dict[str, list[DatasetCandidate]] = {source: [] for source in sources}
-    search_logs: list[str] = []
     for source, task in tasks.items():
-        try:
-            found = await task
-            results_by_source[source] = found
-            search_logs.append(f"searcher: {source} returned {len(found)} hits")
-        except Exception as exc:
-            search_logs.append(f"searcher: {source} failed - {type(exc).__name__}: {exc}")
+        source, found, message = await task
+        results_by_source[source] = found
+        search_logs.append(message)
     candidates = _interleave_by_source(results_by_source, sources)
     return candidates, search_logs

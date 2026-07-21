@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING
 from huggingface_hub import hf_hub_download
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from setscout.tools.search import _has_kaggle_credentials
+
 if TYPE_CHECKING:
     from setscout.models import DatasetCandidate
 
@@ -36,6 +38,9 @@ def _metadata_parts(data: dict) -> list[str]:
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=0.5, min=0.5, max=4))
 def _fetch_kaggle_card_sync(ref: str) -> str:
+    if not _has_kaggle_credentials():
+        return ""
+
     from kaggle.api.kaggle_api_extended import KaggleApi
 
     api = KaggleApi()
@@ -70,5 +75,5 @@ def _fetch_card_sync(candidate: DatasetCandidate) -> str:
 async def fetch_dataset_card(candidate: DatasetCandidate) -> str:
     try:
         return await asyncio.to_thread(_fetch_card_sync, candidate)
-    except Exception:
+    except (Exception, SystemExit):
         return ""
