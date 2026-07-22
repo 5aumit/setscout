@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SetScout direction gallery</title>
+    <style>
+      :root { color-scheme:dark; font-family:Inter,ui-sans-serif,system-ui,sans-serif; background:#101719; color:#e8edf0; }
+      body { margin:0; } header { max-width:1320px; margin:auto; padding:30px 28px 18px; } .eyebrow { color:#90c9b3; font:700 11px ui-monospace,monospace; letter-spacing:.12em; text-transform:uppercase; } h1 { margin:7px 0 4px; font-size:30px; letter-spacing:-.05em; } p { color:#96a2aa; max-width:680px; line-height:1.5; } main { display:grid; grid-template-columns:repeat(3,minmax(390px,1fr)); gap:12px; padding:12px 20px 24px; overflow-x:auto; } article { min-width:390px; border:1px solid #304146; background:#172124; } h2 { padding:13px 14px; margin:0; font-size:14px; border-bottom:1px solid #304146; } iframe { width:100%; height:720px; border:0; display:block; } a { color:#90c9b3; } @media(max-width:640px){ header{padding:22px 16px 10px;}main{padding:10px 12px;} }
+    </style>
+  </head>
+  <body>
+    <header><div class="eyebrow">Static comparison · fake Run Event at stage 2 of 4</div><h1>Three ways to make execution legible, then get out of Results’ way.</h1><p>Open <a href="index.html">the interactive prototype</a> to replay scenarios, change theme, or inspect a single direction.</p></header>
+    <main>
+      <article><h2>Ledger — stage rail / results main panel</h2><iframe title="Ledger direction" src="index.html?variant=ledger&scenario=limited&static=1"></iframe></article>
+      <article><h2>Signal — telemetry horizon / active stage focus</h2><iframe title="Signal direction" src="index.html?variant=signal&scenario=limited&static=1"></iframe></article>
+      <article><h2>Fold — execution sheet / compact completion record</h2><iframe title="Fold direction" src="index.html?variant=fold&scenario=limited&static=1"></iframe></article>
+    </main>
+  </body>
+</html>
