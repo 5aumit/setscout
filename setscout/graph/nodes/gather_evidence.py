@@ -36,4 +36,7 @@ def node_gather_evidence(state: SetScoutState) -> dict:
         else:
             updated.append(c)
 
-    return {"candidates": updated, **log(f"gather_evidence: {fetched}/{len(candidates)} cards fetched")}
+    return {
+        "candidates": updated,
+        **log(f"gather_evidence: {fetched}/{len(candidates)} cards fetched"),
+    }

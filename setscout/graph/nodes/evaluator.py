@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from setscout.graph.state import SetScoutState, log
-from setscout.models import CandidateEvaluation, PipelineResult
+from setscout.models import PipelineResult, has_complete_ranking
 
 
 def _build_prompt(state: SetScoutState) -> str:
@@ -40,35 +40,30 @@ def _build_prompt(state: SetScoutState) -> str:
         "",
         "## Instructions",
         "For each candidate:",
-        "1. Check every stated requirement (met / partial / not_met / unknown). Base checks only on the documentation above — do not guess.",
-        "2. List any documentation-backed issues found (label noise, access restrictions, known limitations). Leave empty if none are stated.",
+        "1. Check every stated requirement (met / partial / not_met / unknown). "
+        "Base checks only on "
+        "the documentation above — do not guess. Every status other than unknown must include a "
+        "citation with source_kind, source_url, and a supporting excerpt.",
+        "2. List any documentation-backed issues found (label noise, access restrictions, known "
+        "limitations). Leave empty if none are stated.",
         "3. Write a one-sentence fit_summary.",
         "4. Assign a rank (1 = best fit).",
         "",
-        "Then write a report_markdown: a concise human-readable report listing all datasets in rank order with their requirement checks, issues, and fit summary.",
+        "Then write a report_markdown: a concise human-readable report listing all datasets in "
+        "rank order with their requirement checks, issues, and fit summary.",
         "Use markdown with headers, bullet points, and URLs.",
     ]
     return "\n".join(lines)
 
 
-def _fallback_report(candidates, error: str) -> tuple[list[CandidateEvaluation], str]:
-    evals = []
-    for i, c in enumerate(candidates, 1):
-        evals.append(CandidateEvaluation(
-            candidate_id=c.id,
-            rank=i,
-            fit_summary="Evaluation unavailable.",
-        ))
-    lines = ["# SetScout Results\n", f"*Evaluation failed: {error}*\n"]
-    for i, c in enumerate(candidates, 1):
-        lines.append(f"\n## {i}. {c.name} ({c.source})\n- URL: {c.url}\n")
-    return evals, "".join(lines)
-
-
 def node_evaluator(state: SetScoutState, *, llm) -> dict:
     candidates = state["candidates"]
     if not candidates:
-        return {"evaluations": [], "report": "# SetScout Results\n\nNo candidates found.", **log("evaluator: no candidates")}
+        return {
+            "evaluations": [],
+            "report": "# SetScout Results\n\nNo candidates found.",
+            **log("evaluator: no candidates"),
+        }
 
     structured = llm.with_structured_output(PipelineResult)
     prompt = _build_prompt(state)
@@ -76,15 +71,15 @@ def node_evaluator(state: SetScoutState, *, llm) -> dict:
     try:
         result: PipelineResult = structured.invoke(prompt)
         evaluations = sorted(result.evaluations, key=lambda e: e.rank)
+        if not has_complete_ranking(candidates, evaluations):
+            raise ValueError("evaluator returned an incomplete ranking")
         return {
             "evaluations": evaluations,
             "report": result.report_markdown,
             **log(f"evaluator: evaluated {len(evaluations)} candidates"),
         }
     except Exception as exc:
-        evals, report = _fallback_report(candidates, str(exc))
         return {
-            "evaluations": evals,
-            "report": report,
-            **log(f"evaluator: LLM failed ({type(exc).__name__}), used fallback report"),
+            "evaluation_failed": True,
+            **log(f"evaluator: evaluation failed ({type(exc).__name__})"),
         }

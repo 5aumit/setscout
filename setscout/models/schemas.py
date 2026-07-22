@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class UserQuery(BaseModel):
@@ -93,10 +93,25 @@ class IssueFinding(BaseModel):
     severity: Literal["low", "medium", "high"] | None = None
 
 
+class EvidenceCitation(BaseModel):
+    """The source excerpt supporting a displayed assessment."""
+
+    source_kind: Literal["dataset_card", "paper", "discussion"]
+    source_url: str
+    excerpt: str
+
+
 class RequirementCheck(BaseModel):
     requirement: str
     status: Literal["met", "partial", "not_met", "unknown"]
     note: str = ""
+    citation: EvidenceCitation | None = None
+
+    @model_validator(mode="after")
+    def _require_evidence_for_verified_check(self):
+        if self.status != "unknown" and self.citation is None:
+            raise ValueError("verified requirement checks must include an evidence citation")
+        return self
 
 
 class CandidateEvaluation(BaseModel):
@@ -105,6 +120,18 @@ class CandidateEvaluation(BaseModel):
     fit_summary: str
     requirement_checks: list[RequirementCheck] = Field(default_factory=list)
     known_issues: list[IssueFinding] = Field(default_factory=list)
+
+
+def has_complete_ranking(
+    candidates: list[DatasetCandidate], evaluations: list[CandidateEvaluation]
+) -> bool:
+    """Return whether an evaluator ranked every candidate exactly once."""
+    return (
+        len(evaluations) == len(candidates)
+        and {evaluation.candidate_id for evaluation in evaluations}
+        == {candidate.id for candidate in candidates}
+        and {evaluation.rank for evaluation in evaluations} == set(range(1, len(candidates) + 1))
+    )
 
 
 class PipelineResult(BaseModel):
