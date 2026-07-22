@@ -2,6 +2,7 @@ from setscout.models.schemas import (
     CandidateEvaluation,
     DatasetCandidate,
     DatasetEnrichment,
+    EvidenceCitation,
     EvidenceDoc,
     ExtractedFacts,
     IssueFinding,
@@ -10,6 +11,7 @@ from setscout.models.schemas import (
     SearchConstraints,
     SearchSpec,
     UserQuery,
+    has_complete_ranking,
     normalize_prioritized_sources,
 )
 
@@ -20,10 +22,12 @@ __all__ = [
     "ExtractedFacts",
     "DatasetEnrichment",
     "DatasetCandidate",
+    "EvidenceCitation",
     "EvidenceDoc",
     "IssueFinding",
     "RequirementCheck",
     "CandidateEvaluation",
     "PipelineResult",
     "normalize_prioritized_sources",
+    "has_complete_ranking",
 ]
