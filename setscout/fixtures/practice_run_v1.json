@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "search_brief": {
+    "purpose": "Compare public datasets for product-review sentiment research.",
+    "domain": "Natural language processing",
+    "data_type": "Labeled product-review text",
+    "requirements": "English reviews, clear sentiment labels, and documented dataset terms."
+  },
+  "run": {
+    "events": [
+      {"kind": "queued"},
+      {"kind": "stage", "stage": "prepare_search_brief", "lifecycle": "waiting"},
+      {"kind": "stage", "stage": "search_dataset_sources", "lifecycle": "waiting"},
+      {"kind": "stage", "stage": "gather_documentation_evidence", "lifecycle": "waiting"},
+      {"kind": "stage", "stage": "evaluate_and_rank_candidates", "lifecycle": "waiting"},
+      {"kind": "stage", "stage": "prepare_search_brief", "lifecycle": "running"},
+      {"kind": "activity", "stage": "prepare_search_brief", "message": "Prepared the Search Brief."},
+      {"kind": "stage", "stage": "prepare_search_brief", "lifecycle": "completed"},
+      {"kind": "stage", "stage": "search_dataset_sources", "lifecycle": "running"},
+      {"kind": "activity", "stage": "search_dataset_sources", "message": "Searched the configured dataset sources.", "counts": [{"label": "dataset candidates", "value": 2}]},
+      {"kind": "stage", "stage": "search_dataset_sources", "lifecycle": "completed"},
+      {"kind": "stage", "stage": "gather_documentation_evidence", "lifecycle": "running"},
+      {"kind": "activity", "stage": "gather_documentation_evidence", "message": "Gathered available documentation evidence.", "counts": [{"label": "documentation records", "value": 2}]},
+      {"kind": "stage", "stage": "gather_documentation_evidence", "lifecycle": "completed"},
+      {"kind": "stage", "stage": "evaluate_and_rank_candidates", "lifecycle": "running"},
+      {"kind": "activity", "stage": "evaluate_and_rank_candidates", "message": "Evaluated candidates against the Search Brief."},
+      {"kind": "stage", "stage": "evaluate_and_rank_candidates", "lifecycle": "completed"},
+      {"kind": "terminal", "outcome": "completed"}
+    ],
+    "outcome": "completed",
+    "stage_history": {
+      "prepare_search_brief": "completed",
+      "search_dataset_sources": "completed",
+      "gather_documentation_evidence": "completed",
+      "evaluate_and_rank_candidates": "completed"
+    },
+    "results": {
+      "overview": "Two public datasets provide a practical starting point for product-review sentiment research.",
+      "evaluations": [
+        {
+          "candidate_id": "amazon_polarity",
+          "rank": 1,
+          "fit_summary": "A large, established product-review benchmark with binary sentiment labels.",
+          "requirement_checks": [
+            {"requirement": "English reviews", "status": "met", "note": "Documentation describes English product reviews.", "citation": {"source_kind": "dataset_card", "source_url": "https://huggingface.co/datasets/fancyzhx/amazon_polarity", "excerpt": "Amazon reviews in English."}}
+          ],
+          "known_issues": []
+        },
+        {
+          "candidate_id": "yelp_polarity",
+          "rank": 2,
+          "fit_summary": "A useful, labeled review corpus for a complementary sentiment comparison.",
+          "requirement_checks": [
+            {"requirement": "Clear sentiment labels", "status": "met", "note": "The corpus uses binary polarity labels.", "citation": {"source_kind": "dataset_card", "source_url": "https://huggingface.co/datasets/yelp_polarity", "excerpt": "The Yelp reviews are labeled for polarity."}}
+          ],
+          "known_issues": []
+        }
+      ]
+    }
+  }
+}

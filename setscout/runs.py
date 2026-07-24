@@ -37,6 +37,15 @@ class RunOutcome(StrEnum):
     CANCELLED = "cancelled"
 
 
+class SearchBrief(BaseModel):
+    """The safe, read-only request summary retained with a Run."""
+
+    purpose: str
+    domain: str
+    data_type: str
+    requirements: str = ""
+
+
 class Count(BaseModel):
     label: str
     value: int
