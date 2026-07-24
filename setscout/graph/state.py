@@ -12,6 +12,7 @@ class SetScoutState(TypedDict, total=False):
     candidates: list[DatasetCandidate]
     evaluations: list[CandidateEvaluation]
     report: str
+    evaluation_failed: bool
     logs: Annotated[list[str], add]
 
 
