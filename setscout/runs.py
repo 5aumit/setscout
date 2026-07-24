@@ -31,6 +31,7 @@ class StageLifecycle(StrEnum):
 
 class RunOutcome(StrEnum):
     COMPLETED = "completed"
+    COMPLETED_WITH_WARNINGS = "completed_with_warnings"
     EMPTY_RESULTS = "empty_results"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -222,7 +223,11 @@ class RunEventAdapter:
 
         if results is None:
             raise ValueError("pipeline ended before producing a terminal evaluation outcome")
-        self.terminal(RunOutcome.COMPLETED)
+        self.terminal(
+            RunOutcome.COMPLETED_WITH_WARNINGS
+            if self._has_run_limitation()
+            else RunOutcome.COMPLETED
+        )
         return self._record(results)
 
     def _record(self, results: RunResults | None) -> RunRecord:
