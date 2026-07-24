@@ -46,7 +46,7 @@ def _evaluation(candidate_id: str, rank: int) -> CandidateEvaluation:
     )
 
 
-def _completed_updates():
+def _completed_updates() -> list[tuple[str, dict[str, object]]]:
     candidate = _candidate("reviews").model_copy(
         update={
             "evidence_docs": [
@@ -135,14 +135,30 @@ def test_evaluator_failure_fails_run_and_suppresses_ranked_results():
     assert run.stage_history[Stage.EVALUATE] is StageLifecycle.FAILED
 
 
-def test_stage_lifecycle_allows_only_waiting_running_then_terminal_outcome():
+@pytest.mark.parametrize(
+    "lifecycle",
+    [
+        StageLifecycle.COMPLETED,
+        StageLifecycle.COMPLETED_WITH_WARNINGS,
+        StageLifecycle.FAILED,
+    ],
+)
+def test_stage_lifecycle_allows_each_terminal_outcome(lifecycle: StageLifecycle):
     adapter = RunEventAdapter()
 
     adapter.start()
     adapter.begin_stage(Stage.PREPARE)
-    adapter.finish_stage(Stage.PREPARE, StageLifecycle.COMPLETED_WITH_WARNINGS)
+    adapter.finish_stage(Stage.PREPARE, lifecycle)
 
-    assert adapter.stage_history[Stage.PREPARE] is StageLifecycle.COMPLETED_WITH_WARNINGS
+    assert adapter.stage_history[Stage.PREPARE] is lifecycle
+
+
+def test_stage_lifecycle_rejects_out_of_order_stages():
+    adapter = RunEventAdapter()
+
+    adapter.start()
+    adapter.begin_stage(Stage.PREPARE)
+    adapter.finish_stage(Stage.PREPARE, StageLifecycle.COMPLETED)
 
     with pytest.raises(ValueError, match="fixed user-facing order"):
         adapter.begin_stage(Stage.EVIDENCE)
@@ -172,7 +188,7 @@ def test_skipped_source_is_a_visible_limitation_not_empty_results():
 
     run = RunEventAdapter().adapt(updates)
 
-    assert run.outcome is RunOutcome.COMPLETED
+    assert run.outcome is RunOutcome.COMPLETED_WITH_WARNINGS
     assert run.results is not None
     assert any(event.kind == "limitation" for event in run.events)
 
