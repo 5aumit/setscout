@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "search_brief": {
+    "purpose": "Compare public datasets for product-review sentiment research.",
+    "domain": "Natural language processing",
+    "data_type": "Labeled product-review text",
+    "requirements": "English reviews, clear sentiment labels, and documented dataset terms."
+  },
+  "run": {
+    "events": [
+      {"kind": "queued"},
+      {"kind": "stage", "stage": "prepare_search_brief", "lifecycle": "waiting"},
+      {"kind": "stage", "stage": "search_dataset_sources", "lifecycle": "waiting"},
+      {"kind": "stage", "stage": "gather_documentation_evidence", "lifecycle": "waiting"},
+      {"kind": "stage", "stage": "evaluate_and_rank_candidates", "lifecycle": "waiting"},
+      {"kind": "stage", "stage": "prepare_search_brief", "lifecycle": "running"},
+      {"kind": "activity", "stage": "prepare_search_brief", "message": "Prepared the Search Brief."},
+      {"kind": "stage", "stage": "prepare_search_brief", "lifecycle": "completed"},
+      {"kind": "stage", "stage": "search_dataset_sources", "lifecycle": "running"},
+      {"kind": "activity", "stage": "search_dataset_sources", "message": "Searched the configured dataset sources.", "counts": [{"label": "dataset candidates", "value": 8}]},
+      {"kind": "stage", "stage": "search_dataset_sources", "lifecycle": "completed"},
+      {"kind": "stage", "stage": "gather_documentation_evidence", "lifecycle": "running"},
+      {"kind": "activity", "stage": "gather_documentation_evidence", "message": "Gathered available documentation evidence.", "counts": [{"label": "documentation records", "value": 8}]},
+      {"kind": "stage", "stage": "gather_documentation_evidence", "lifecycle": "completed"},
+      {"kind": "stage", "stage": "evaluate_and_rank_candidates", "lifecycle": "running"},
+      {"kind": "activity", "stage": "evaluate_and_rank_candidates", "message": "Evaluated candidates against the Search Brief."},
+      {"kind": "stage", "stage": "evaluate_and_rank_candidates", "lifecycle": "completed"},
+      {"kind": "terminal", "outcome": "completed"}
+    ],
+    "outcome": "completed",
+    "stage_history": {
+      "prepare_search_brief": "completed",
+      "search_dataset_sources": "completed",
+      "gather_documentation_evidence": "completed",
+      "evaluate_and_rank_candidates": "completed"
+    },
+    "results": {
+      "overview": "Eight public datasets are ranked by their fit for product-review sentiment research.",
+      "candidates": [
+        {"id": "amazon_polarity", "name": "Amazon Polarity", "source": "Hugging Face", "url": "https://huggingface.co/datasets/fancyzhx/amazon_polarity"},
+        {"id": "yelp_polarity", "name": "Yelp Polarity", "source": "Hugging Face", "url": "https://huggingface.co/datasets/fancyzhx/yelp_polarity"},
+        {"id": "amazon_reviews_multi", "name": "Amazon Reviews Multi", "source": "Hugging Face", "url": "https://huggingface.co/datasets/defunct-datasets/amazon_reviews_multi"},
+        {"id": "womens_clothing_reviews", "name": "Women's Clothing Reviews", "source": "Kaggle", "url": "https://www.kaggle.com/datasets/nicapotato/womens-ecommerce-clothing-reviews"},
+        {"id": "amazon_us_reviews", "name": "Amazon US Reviews", "source": "Hugging Face", "url": "https://huggingface.co/datasets/amazon_us_reviews"},
+        {"id": "consumer_reviews", "name": "Consumer Reviews of Amazon Products", "source": "Kaggle", "url": "https://www.kaggle.com/datasets/datafiniti/consumer-reviews-of-amazon-products"},
+        {"id": "imdb", "name": "IMDB", "source": "Hugging Face", "url": "https://huggingface.co/datasets/stanfordnlp/imdb"},
+        {"id": "sentiment140", "name": "Sentiment140", "source": "Kaggle", "url": "https://www.kaggle.com/datasets/kazanova/sentiment140"}
+      ],
+      "evaluations": [
+        {"candidate_id": "amazon_polarity", "rank": 1, "fit_summary": "Large English product-review benchmark with binary sentiment labels.", "requirement_checks": [{"requirement": "English reviews", "status": "met", "note": "The dataset card describes English product reviews.", "citation": {"source_kind": "dataset_card", "source_url": "https://huggingface.co/datasets/fancyzhx/amazon_polarity", "excerpt": "Amazon reviews in English."}}], "known_issues": []},
+        {"candidate_id": "yelp_polarity", "rank": 2, "fit_summary": "Labeled English business reviews for a strong complementary benchmark.", "requirement_checks": [{"requirement": "Clear sentiment labels", "status": "met", "note": "The corpus uses binary polarity labels.", "citation": {"source_kind": "dataset_card", "source_url": "https://huggingface.co/datasets/fancyzhx/yelp_polarity", "excerpt": "Yelp reviews are labeled for polarity."}}], "known_issues": []},
+        {"candidate_id": "amazon_reviews_multi", "rank": 3, "fit_summary": "Multilingual product reviews with an English configuration and star ratings.", "requirement_checks": [{"requirement": "English reviews", "status": "met", "note": "An English configuration is documented.", "citation": {"source_kind": "dataset_card", "source_url": "https://huggingface.co/datasets/defunct-datasets/amazon_reviews_multi", "excerpt": "English is an available language."}}], "known_issues": []},
+        {"candidate_id": "womens_clothing_reviews", "rank": 4, "fit_summary": "Focused e-commerce reviews with ratings and recommendation signals.", "requirement_checks": [{"requirement": "Clear sentiment labels", "status": "partial", "note": "Sentiment must be derived from ratings.", "citation": {"source_kind": "dataset_card", "source_url": "https://www.kaggle.com/datasets/nicapotato/womens-ecommerce-clothing-reviews", "excerpt": "Ratings are supplied with reviews."}}], "known_issues": []},
+        {"candidate_id": "amazon_us_reviews", "rank": 5, "fit_summary": "Broad product-review collection across many categories and rating levels.", "requirement_checks": [{"requirement": "Documented dataset terms", "status": "unknown", "note": "Available evidence did not establish reuse terms."}], "known_issues": []},
+        {"candidate_id": "consumer_reviews", "rank": 6, "fit_summary": "Smaller product-focused collection with review text and rating metadata.", "requirement_checks": [{"requirement": "English reviews", "status": "met", "note": "Available examples contain English review text.", "citation": {"source_kind": "dataset_card", "source_url": "https://www.kaggle.com/datasets/datafiniti/consumer-reviews-of-amazon-products", "excerpt": "Review text is available."}}], "known_issues": []},
+        {"candidate_id": "imdb", "rank": 7, "fit_summary": "Well-documented sentiment benchmark with a weaker product-domain match.", "requirement_checks": [{"requirement": "English reviews", "status": "met", "note": "The dataset contains English movie reviews.", "citation": {"source_kind": "dataset_card", "source_url": "https://huggingface.co/datasets/stanfordnlp/imdb", "excerpt": "IMDB includes English movie reviews."}}], "known_issues": []},
+        {"candidate_id": "sentiment140", "rank": 8, "fit_summary": "Large labeled sentiment corpus whose social posts differ from product reviews.", "requirement_checks": [{"requirement": "English reviews", "status": "not_met", "note": "The text consists of social posts rather than reviews.", "citation": {"source_kind": "dataset_card", "source_url": "https://www.kaggle.com/datasets/kazanova/sentiment140", "excerpt": "The data contains tweets."}}], "known_issues": []}
+      ]
+    }
+  }
+}

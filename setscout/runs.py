@@ -37,6 +37,15 @@ class RunOutcome(StrEnum):
     CANCELLED = "cancelled"
 
 
+class SearchBrief(BaseModel):
+    """The safe, read-only request summary retained with a Run."""
+
+    purpose: str
+    domain: str
+    data_type: str
+    requirements: str = ""
+
+
 class Count(BaseModel):
     label: str
     value: int
@@ -75,8 +84,20 @@ RunEvent: TypeAlias = QueuedEvent | StageEvent | ActivityEvent | LimitationEvent
 
 
 class RunResults(BaseModel):
+    """Public Result data retained after a Run completes."""
+
     evaluations: list[CandidateEvaluation]
     overview: str
+    candidates: list[ResultCandidate] = Field(default_factory=list)
+
+
+class ResultCandidate(BaseModel):
+    """The safe dataset identity needed to act on a ranked Result."""
+
+    id: str
+    name: str
+    source: str
+    url: str
 
 
 class RunRecord(BaseModel):
@@ -218,7 +239,17 @@ class RunEventAdapter:
                     self.terminal(RunOutcome.EMPTY_RESULTS)
                     return self._record(None)
                 results = RunResults(
-                    evaluations=patch["evaluations"], overview=patch.get("report", "")
+                    evaluations=patch["evaluations"],
+                    overview=patch.get("report", ""),
+                    candidates=[
+                        ResultCandidate(
+                            id=candidate.id,
+                            name=candidate.name,
+                            source=candidate.source,
+                            url=candidate.url,
+                        )
+                        for candidate in candidates
+                    ],
                 )
 
         if results is None:
