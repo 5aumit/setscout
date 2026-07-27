@@ -11,7 +11,14 @@ from dotenv import load_dotenv
 
 from setscout.presentation import render_run_view
 from setscout.replay import load_practice_run
-from setscout.runs import ActivityEvent, RunRecord, Stage, StageLifecycle
+from setscout.runs import (
+    ActivityEvent,
+    RunEventAdapter,
+    RunRecord,
+    SearchBrief,
+    Stage,
+    StageLifecycle,
+)
 
 ROOT = Path(__file__).resolve().parent
 
@@ -103,26 +110,43 @@ def _run(
 ) -> Iterator[tuple]:
     key = _s(api_key)
     if not key:
-        yield gr.Markdown(value="**Error:** Gemini API key is required.", visible=True), gr.HTML(
-            visible=False
+        yield (
+            gr.Group(visible=True),
+            gr.Markdown(value="**Error:** Gemini API key is required.", visible=True),
+            gr.HTML(visible=False),
         )
         return
     if not all([_s(purpose), _s(domain), _s(data_type)]):
-        yield gr.Markdown(
-            value="**Error:** Purpose, domain, and data type are all required.", visible=True
-        ), gr.HTML(visible=False)
+        yield (
+            gr.Group(visible=True),
+            gr.Markdown(
+                value="**Error:** Purpose, domain, and data type are all required.", visible=True
+            ),
+            gr.HTML(visible=False),
+        )
         return
 
-    yield gr.Markdown(
-        value="*Running your dataset search. This can take a minute...*", visible=True
-    ), gr.HTML(visible=False)
+    brief = SearchBrief(
+        purpose=_s(purpose),
+        domain=_s(domain),
+        data_type=_s(data_type),
+        requirements=_s(requirements),
+    )
+    adapter = RunEventAdapter()
+    adapter.start()
+    adapter.begin_stage(Stage.PREPARE)
     try:
-        yield gr.Markdown(value="*Preparing your Run...*", visible=True), gr.HTML(
-            visible=False
-        )
-        from setscout.pipeline import run_pipeline
+        from setscout.pipeline import stream_pipeline
 
-        result = run_pipeline(
+        yield (
+            gr.Group(visible=False),
+            gr.Markdown(visible=False),
+            gr.HTML(
+                value=render_run_view(adapter.snapshot(), brief, show_results=False),
+                visible=True,
+            ),
+        )
+        for node_name, patch in stream_pipeline(
             {
                 "purpose": _s(purpose),
                 "domain": _s(domain),
@@ -132,17 +156,38 @@ def _run(
                 "exclude_datasets": _s(exclude_datasets),
             },
             api_key=key,
+        ):
+            run = adapter.consume(node_name, patch)
+            yield (
+                gr.Group(visible=False),
+                gr.Markdown(visible=False),
+                gr.HTML(
+                    value=render_run_view(
+                        run,
+                        brief,
+                        show_results=run.results is not None or node_name == "evaluator",
+                    ),
+                    visible=True,
+                ),
+            )
+            if not adapter.is_terminal:
+                adapter.begin_next_stage()
+                yield (
+                    gr.Group(visible=False),
+                    gr.Markdown(visible=False),
+                    gr.HTML(
+                        value=render_run_view(adapter.snapshot(), brief, show_results=False),
+                        visible=True,
+                    ),
         )
+    except Exception:
         yield (
+            gr.Group(visible=True),
             gr.Markdown(
-                value=result.get("report") or "No Results overview was produced.",
+                value="**Unable to complete this Run.** Check your Gemini API key and try again.",
                 visible=True,
             ),
             gr.HTML(visible=False),
-        )
-    except Exception as e:
-        yield gr.Markdown(value=f"**Error:** {type(e).__name__}: {e}", visible=True), gr.HTML(
-            visible=False
         )
 
 
@@ -213,7 +258,7 @@ with gr.Blocks(title="SetScout") as demo:
             additional_notes,
             exclude_datasets,
         ],
-        outputs=[markdown_output, run_view_output],
+        outputs=[form, markdown_output, run_view_output],
         api_name="run",
     )
     if _test_run_enabled():

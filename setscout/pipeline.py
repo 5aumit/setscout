@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from typing import Any
 
 from setscout.graph import build_setscout_graph
 from setscout.graph.state import SetScoutState
 from setscout.models import UserQuery
+from setscout.runs import PipelineUpdate
 from setscout.tracing import flush_traces, invoke_config
 
 
@@ -30,6 +32,15 @@ def run_pipeline(
     *,
     api_key: str | None = None,
 ) -> SetScoutState:
+    app, initial = _build_pipeline(request, api_key)
+    result = app.invoke(initial, config=invoke_config())
+    flush_traces()
+    return result
+
+
+def _build_pipeline(
+    request: dict[str, Any], api_key: str | None
+) -> tuple[Any, SetScoutState]:
     q = user_query_from_dict(request)
     if not all([q.purpose, q.domain, q.data_type]):
         raise ValueError("purpose, domain, and data_type are required")
@@ -40,6 +51,18 @@ def run_pipeline(
 
     app = build_setscout_graph(key)
     initial: SetScoutState = {"query": q, "logs": []}
-    result = app.invoke(initial, config=invoke_config())
-    flush_traces()
-    return result
+    return app, initial
+
+
+def stream_pipeline(
+    request: dict[str, Any],
+    *,
+    api_key: str | None = None,
+) -> Iterator[PipelineUpdate]:
+    """Yield completed pipeline-stage patches in execution order."""
+    app, initial = _build_pipeline(request, api_key)
+    try:
+        for update in app.stream(initial, stream_mode="updates", config=invoke_config()):
+            yield from update.items()
+    finally:
+        flush_traces()
