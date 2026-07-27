@@ -126,6 +126,8 @@ class RunEventAdapter:
         self._started = False
         self._terminal: RunOutcome | None = None
         self._next_stage_index = 0
+        self._candidates: list[DatasetCandidate] = []
+        self._results: RunResults | None = None
 
     def start(self) -> None:
         if self._started:
@@ -145,6 +147,16 @@ class RunEventAdapter:
             raise ValueError(f"{stage} cannot start from {self.stage_history[stage]}")
         self.stage_history[stage] = StageLifecycle.RUNNING
         self.events.append(StageEvent(stage=stage, lifecycle=StageLifecycle.RUNNING))
+
+    def begin_next_stage(self) -> None:
+        """Mark the next user-facing Stage as running."""
+        if self._next_stage_index >= len(STAGES):
+            raise ValueError("all Stages have already started")
+        self.begin_stage(STAGES[self._next_stage_index])
+
+    @property
+    def is_terminal(self) -> bool:
+        return self._terminal is not None
 
     def activity(self, stage: Stage, message: str, counts: list[Count] | None = None) -> None:
         if self.stage_history[stage] is not StageLifecycle.RUNNING:
@@ -180,67 +192,71 @@ class RunEventAdapter:
     def adapt(self, updates: Iterable[PipelineUpdate]) -> RunRecord:
         """Adapt ordered LangGraph node patches without exposing their logs or names."""
         self.start()
-        candidates: list[DatasetCandidate] = []
-        results: RunResults | None = None
-
         for node_name, patch in updates:
-            try:
-                stage = self._node_stages[node_name]
-            except KeyError as exc:
-                raise ValueError(f"unknown pipeline update: {node_name}") from exc
-            self.begin_stage(stage)
+            self.consume(node_name, patch)
+        if self._terminal is None:
+            raise ValueError("pipeline ended before producing a terminal evaluation outcome")
+        return self._record(self._results)
 
-            if stage is Stage.PREPARE:
-                self.activity(stage, "Prepared the Search Brief.")
-                lifecycle = self._warning_or_completed(patch)
-                if lifecycle is StageLifecycle.COMPLETED_WITH_WARNINGS:
-                    self.limitation(
-                        "The Search Brief used a fallback interpretation of the request."
-                    )
-                self.finish_stage(stage, lifecycle)
-            elif stage is Stage.SEARCH:
-                candidates = patch.get("candidates", [])
-                counts = [Count(label="dataset candidates", value=len(candidates))]
-                self.activity(stage, "Searched the configured dataset sources.", counts)
-                lifecycle = self._warning_or_completed(patch)
-                if lifecycle is StageLifecycle.COMPLETED_WITH_WARNINGS:
-                    self.limitation(
-                        "One or more configured dataset sources could not be fully searched."
-                    )
-                self.finish_stage(stage, lifecycle)
-            elif stage is Stage.EVIDENCE:
-                candidates = patch.get("candidates", candidates)
-                fetched = sum(bool(candidate.evidence_docs) for candidate in candidates)
-                counts = [Count(label="documentation records", value=fetched)]
-                self.activity(stage, "Gathered available documentation evidence.", counts)
-                lifecycle = (
-                    StageLifecycle.COMPLETED
-                    if not candidates or fetched == len(candidates)
-                    else StageLifecycle.COMPLETED_WITH_WARNINGS
+    def consume(self, node_name: str, patch: dict) -> RunRecord:
+        """Apply one completed pipeline-stage patch and return the current Run snapshot."""
+        try:
+            stage = self._node_stages[node_name]
+        except KeyError as exc:
+            raise ValueError(f"unknown pipeline update: {node_name}") from exc
+        if self.stage_history[stage] is StageLifecycle.WAITING:
+            self.begin_stage(stage)
+        elif self.stage_history[stage] is not StageLifecycle.RUNNING:
+            raise ValueError(f"{stage} cannot receive an update from {self.stage_history[stage]}")
+
+        if stage is Stage.PREPARE:
+            self.activity(stage, "Prepared the Search Brief.")
+            lifecycle = self._warning_or_completed(patch)
+            if lifecycle is StageLifecycle.COMPLETED_WITH_WARNINGS:
+                self.limitation("The Search Brief used a fallback interpretation of the request.")
+            self.finish_stage(stage, lifecycle)
+        elif stage is Stage.SEARCH:
+            self._candidates = patch.get("candidates", [])
+            counts = [Count(label="dataset candidates", value=len(self._candidates))]
+            self.activity(stage, "Searched the configured dataset sources.", counts)
+            lifecycle = self._warning_or_completed(patch)
+            if lifecycle is StageLifecycle.COMPLETED_WITH_WARNINGS:
+                self.limitation(
+                    "One or more configured dataset sources could not be fully searched."
                 )
-                if lifecycle is StageLifecycle.COMPLETED_WITH_WARNINGS:
-                    self.limitation(
-                        "Some candidate documentation was unavailable during evaluation."
-                    )
-                self.finish_stage(stage, lifecycle)
-            else:
-                self.activity(stage, "Evaluated candidates against the Search Brief.")
-                if patch.get("evaluation_failed") or not has_complete_ranking(
-                    candidates, patch.get("evaluations", [])
-                ) and candidates:
-                    self.finish_stage(stage, StageLifecycle.FAILED)
-                    self.terminal(RunOutcome.FAILED)
-                    return self._record(None)
+            self.finish_stage(stage, lifecycle)
+        elif stage is Stage.EVIDENCE:
+            self._candidates = patch.get("candidates", self._candidates)
+            fetched = sum(bool(candidate.evidence_docs) for candidate in self._candidates)
+            self.activity(
+                stage,
+                "Gathered available documentation evidence.",
+                [Count(label="documentation records", value=fetched)],
+            )
+            lifecycle = (
+                StageLifecycle.COMPLETED
+                if not self._candidates or fetched == len(self._candidates)
+                else StageLifecycle.COMPLETED_WITH_WARNINGS
+            )
+            if lifecycle is StageLifecycle.COMPLETED_WITH_WARNINGS:
+                self.limitation("Some candidate documentation was unavailable during evaluation.")
+            self.finish_stage(stage, lifecycle)
+        else:
+            self.activity(stage, "Evaluated candidates against the Search Brief.")
+            if patch.get("evaluation_failed") or (
+                not has_complete_ranking(self._candidates, patch.get("evaluations", []))
+                and self._candidates
+            ):
+                self.finish_stage(stage, StageLifecycle.FAILED)
+                self.terminal(RunOutcome.FAILED)
+            elif not self._candidates and not self._has_run_limitation():
                 self.finish_stage(stage, StageLifecycle.COMPLETED)
-                if not candidates:
-                    if self._has_run_limitation():
-                        results = RunResults(evaluations=[], overview=patch.get("report", ""))
-                        break
-                    self.terminal(RunOutcome.EMPTY_RESULTS)
-                    return self._record(None)
-                results = RunResults(
+                self.terminal(RunOutcome.EMPTY_RESULTS)
+            else:
+                self.finish_stage(stage, StageLifecycle.COMPLETED)
+                self._results = RunResults(
                     evaluations=patch["evaluations"],
-                    overview=patch.get("report", ""),
+                    overview=self._results_overview(),
                     candidates=[
                         ResultCandidate(
                             id=candidate.id,
@@ -248,18 +264,24 @@ class RunEventAdapter:
                             source=candidate.source,
                             url=candidate.url,
                         )
-                        for candidate in candidates
+                        for candidate in self._candidates
                     ],
                 )
+                self.terminal(
+                    RunOutcome.COMPLETED_WITH_WARNINGS
+                    if self._has_run_limitation()
+                    else RunOutcome.COMPLETED
+                )
+        return self.snapshot()
 
-        if results is None:
-            raise ValueError("pipeline ended before producing a terminal evaluation outcome")
-        self.terminal(
-            RunOutcome.COMPLETED_WITH_WARNINGS
-            if self._has_run_limitation()
-            else RunOutcome.COMPLETED
+    def snapshot(self) -> RunRecord:
+        """Return the current user-safe Run state while it is still in progress."""
+        return RunRecord(
+            events=self.events.copy(),
+            outcome=self._terminal or RunOutcome.COMPLETED,
+            stage_history=self.stage_history.copy(),
+            results=self._results,
         )
-        return self._record(results)
 
     def _record(self, results: RunResults | None) -> RunRecord:
         assert self._terminal is not None
@@ -272,6 +294,12 @@ class RunEventAdapter:
 
     def _has_run_limitation(self) -> bool:
         return any(event.kind == "limitation" and event.scope == "run" for event in self.events)
+
+    def _results_overview(self) -> str:
+        count = len(self._candidates)
+        if count == 1:
+            return "1 dataset ranked against your Search Brief."
+        return f"{count} datasets ranked against your Search Brief."
 
     @staticmethod
     def _warning_or_completed(patch: dict) -> StageLifecycle:

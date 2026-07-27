@@ -122,6 +122,23 @@ def test_completed_run_emits_ordered_public_updates_and_structured_results():
     )
 
 
+def test_results_overview_does_not_expose_the_legacy_markdown_report():
+    updates = _completed_updates()
+    updates[-1] = (
+        "evaluator",
+        {
+            "evaluations": updates[-1][1]["evaluations"],
+            "report": "# Dataset Evaluation Report\n\n## User Requirements\n\nLong legacy report.",
+        },
+    )
+
+    run = RunEventAdapter().adapt(updates)
+
+    assert run.results is not None
+    assert run.results.overview == "1 dataset ranked against your Search Brief."
+    assert "# Dataset Evaluation Report" not in run.results.overview
+
+
 def test_evaluator_failure_fails_run_and_suppresses_ranked_results():
     updates = _completed_updates()
     updates[-1] = ("evaluator", {"evaluation_failed": True})

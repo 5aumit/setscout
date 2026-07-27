@@ -9,6 +9,7 @@ from html import escape
 from setscout.models import CandidateEvaluation, RequirementCheck
 from setscout.runs import (
     ActivityEvent,
+    Count,
     ResultCandidate,
     RunOutcome,
     RunRecord,
@@ -137,12 +138,26 @@ def _render_stages(run: RunRecord) -> str:
     return f'<ol class="run-stage-list">{"".join(rows)}</ol>'
 
 
+def _counts_markup(counts: list[Count]) -> str:
+    return " ".join(
+        f'<span class="run-chip">{count.value} {escape(count.label)}</span>' for count in counts
+    )
+
+
 def _render_activity(run: RunRecord, current_activity: ActivityEvent | None) -> str:
     updates = [event for event in run.events if isinstance(event, ActivityEvent)]
     current = ""
     if current_activity:
         current = f'<div class="run-activity-panel"><p class="run-kicker">In progress</p><h2 class="run-title">{escape(_STAGE_LABELS[current_activity.stage])}</h2><p class="run-copy">{escape(current_activity.message)}</p></div>'
-    history = "".join(f'<li class="run-activity"><span class="run-activity-marker">✓</span><div><strong>{escape(_STAGE_LABELS[event.stage])}</strong><p class="run-copy">{escape(event.message)}</p></div></li>' for event in updates if event is not current_activity)
+    history = "".join(
+        f'<li class="run-activity"><span class="run-activity-marker">✓</span><div>'
+        f'<strong>{escape(_STAGE_LABELS[event.stage])}</strong>'
+        f'<p class="run-copy">{escape(event.message)}</p>'
+        f"{_counts_markup(event.counts)}"
+        "</div></li>"
+        for event in updates
+        if event is not current_activity
+    )
     history_block = f'<ol class="run-activity-list">{history}</ol>' if history else '<p class="run-copy">Progress updates will appear here as each Stage completes.</p>'
     return f'<section aria-live="polite"><p class="run-kicker">Run Activity</p>{current}<div class="run-activity-panel"><p class="run-kicker">Completed updates</p>{history_block}</div></section>'
 

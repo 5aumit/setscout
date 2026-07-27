@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 from setscout.graph.state import SetScoutState, log
-from setscout.models import PipelineResult, has_complete_ranking
+from setscout.models import (
+    CandidateEvaluation,
+    DatasetCandidate,
+    PipelineResult,
+    has_complete_ranking,
+)
 
 
 def _build_prompt(state: SetScoutState) -> str:
@@ -56,6 +61,22 @@ def _build_prompt(state: SetScoutState) -> str:
     return "\n".join(lines)
 
 
+def _normalize_ranks(
+    candidates: list[DatasetCandidate], evaluations: list[CandidateEvaluation]
+) -> list[CandidateEvaluation]:
+    """Make a complete evaluator response safe for the ranked Results contract."""
+    candidate_ids = {candidate.id for candidate in candidates}
+    evaluation_ids = {evaluation.candidate_id for evaluation in evaluations}
+    if len(evaluations) != len(candidates) or evaluation_ids != candidate_ids:
+        return evaluations
+
+    ordered = sorted(enumerate(evaluations), key=lambda item: (item[1].rank, item[0]))
+    return [
+        evaluation.model_copy(update={"rank": rank})
+        for rank, (_, evaluation) in enumerate(ordered, start=1)
+    ]
+
+
 def node_evaluator(state: SetScoutState, *, llm) -> dict:
     candidates = state["candidates"]
     if not candidates:
@@ -70,7 +91,7 @@ def node_evaluator(state: SetScoutState, *, llm) -> dict:
 
     try:
         result: PipelineResult = structured.invoke(prompt)
-        evaluations = sorted(result.evaluations, key=lambda e: e.rank)
+        evaluations = _normalize_ranks(candidates, result.evaluations)
         if not has_complete_ranking(candidates, evaluations):
             raise ValueError("evaluator returned an incomplete ranking")
         return {
